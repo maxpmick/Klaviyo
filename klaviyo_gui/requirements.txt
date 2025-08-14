@@ -1,0 +1,39 @@
+# GUI Framework
+customtkinter>=5.2.0
+
+# HTTP Client for API calls
+requests>=2.31.0
+
+# Secure credential storage
+keyring>=24.0.0
+
+# Environment variable support
+python-dotenv>=1.0.0
+
+# Build tools for creating executables
+cx_Freeze>=6.15.0
+pyinstaller>=6.7.0
+pywin32-ctypes; platform_system=="Windows"
+
+# Additional dependencies for robust operation
+urllib3>=1.26.0
+certifi>=2023.0.0
+
+# JSON handling (usually included with Python but explicit for clarity)
+# json - built-in module
+
+# Threading and async support (built-in modules)
+# threading - built-in module
+# asyncio - built-in module
+
+# Logging (built-in module)
+# logging - built-in module
+
+# File system operations (built-in modules)
+# os - built-in module
+# pathlib - built-in module
+
+# Data structures and utilities (built-in modules)
+# dataclasses - built-in module
+# typing - built-in module
+# datetime - built-in module
