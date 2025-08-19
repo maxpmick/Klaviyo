@@ -14,6 +14,7 @@ import os
 import sys
 import importlib
 from pathlib import Path
+import textwrap
 
 
 def run_pyinstaller(args: list[str]) -> None:
@@ -43,6 +44,33 @@ def find_customtkinter_assets() -> tuple[str, str] | None:
 
 def build_gui():
     add_data = find_customtkinter_assets()
+    manifest_path = None
+    if os.name == "nt":
+        manifest_xml = textwrap.dedent(
+            """\
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+              <assemblyIdentity version="1.0.0.0" processorArchitecture="*" name="KlaviyoSyncTool" type="win32"/>
+              <description>Klaviyo Checkout Snapshot Sync Tool</description>
+              <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+                <security>
+                  <requestedPrivileges>
+                    <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+                  </requestedPrivileges>
+                </security>
+              </trustInfo>
+              <dependency>
+                <dependentAssembly>
+                  <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
+                </dependentAssembly>
+              </dependency>
+            </assembly>
+            """
+        ).strip()
+        build_dir = Path("build")
+        build_dir.mkdir(exist_ok=True)
+        manifest_path = build_dir / "asInvoker.manifest"
+        manifest_path.write_text(manifest_xml, encoding="utf-8")
     args = [
         "--noconfirm",
         "--clean",
@@ -53,11 +81,39 @@ def build_gui():
     ]
     if add_data:
         args.append(f"--add-data={add_data[0]}{os.pathsep}{add_data[1]}")
+    if manifest_path:
+        args.extend(["--manifest", str(manifest_path)])
     args.append("klaviyo_gui/main.py")
     run_pyinstaller(args)
 
 
 def build_cli():
+    manifest_path = None
+    if os.name == "nt":
+        # Reuse the same manifest for CLI
+        build_dir = Path("build")
+        build_dir.mkdir(exist_ok=True)
+        manifest_path = build_dir / "asInvoker.manifest"
+        if not manifest_path.exists():
+            manifest_path.write_text("""
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" processorArchitecture="*" name="klaviyo_fetch_metrics" type="win32"/>
+  <description>Klaviyo CLI</description>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
+    </dependentAssembly>
+  </dependency>
+</assembly>
+""".strip(), encoding="utf-8")
     args = [
         "--noconfirm",
         "--clean",
@@ -67,6 +123,8 @@ def build_cli():
         "klaviyo_fetch_metrics",
         "fetch_metrics.py",
     ]
+    if manifest_path:
+        args.extend(["--manifest", str(manifest_path)])
     run_pyinstaller(args)
 
 
