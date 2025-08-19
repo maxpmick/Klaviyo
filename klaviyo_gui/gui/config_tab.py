@@ -3,6 +3,7 @@ Configuration tab for settings and API configuration
 """
 
 import tkinter as tk
+from tkinter import messagebox
 import customtkinter as ctk
 import logging
 from typing import Optional
@@ -365,7 +366,7 @@ class ConfigTab:
     def reset_config(self):
         """Reset configuration to defaults"""
         # Show confirmation dialog
-        result = tk.messagebox.askyesno(
+        result = messagebox.askyesno(
             "Reset Configuration",
             "Are you sure you want to reset all settings to defaults?\nThis will clear your API key and all custom settings."
         )
