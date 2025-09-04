@@ -17,11 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up 32-bit Python
+      - name: Set up 64-bit Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          architecture: 'x86'
+          architecture: 'x64'
 
       - name: Install dependencies
         run: |

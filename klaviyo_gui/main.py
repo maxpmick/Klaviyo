@@ -7,6 +7,7 @@ import logging
 import tkinter as tk
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Determine if running as a frozen executable (compiled binary)
 if getattr(sys, 'frozen', False):
@@ -19,6 +20,27 @@ else:
     application_path = Path(__file__).parent
     # Add the parent directory to the path so we can import our modules
     sys.path.insert(0, str(application_path.parent))
+
+# Load environment variables from a .env file if present (useful on Windows/macOS)
+try:
+    load_dotenv()
+except Exception:
+    pass
+
+# Ensure Requests/SSL can find a CA bundle when frozen on Windows
+try:
+    import certifi
+    ca_path = certifi.where()
+    # Set both env vars commonly respected by Requests/OpenSSL
+    os.environ.setdefault("SSL_CERT_FILE", ca_path)
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", ca_path)
+    # If available, extend certifi with Windows' certificate store (enterprise CAs, etc.)
+    try:
+        import certifi_win32  # type: ignore  # noqa: F401
+    except Exception:
+        pass
+except Exception:
+    pass
 
 # Set environment variable for customtkinter to find assets when frozen
 # Prefer actual packaged assets if present; otherwise do not override defaults
