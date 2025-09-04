@@ -5,10 +5,17 @@ Configuration management with secure API key storage
 import os
 import json
 import logging
-import keyring
 from typing import Optional, Dict, Any
 from pathlib import Path
 from .defaults import *
+
+# Attempt to import keyring; allow graceful fallback if unavailable
+try:
+    import keyring  # type: ignore
+    KEYRING_AVAILABLE = True
+except Exception:
+    keyring = None  # type: ignore
+    KEYRING_AVAILABLE = False
 
 
 class ConfigManager:
@@ -24,6 +31,8 @@ class ConfigManager:
         self.config_dir = Path.home() / ".klaviyo_sync"
         self.config_file = self.config_dir / CONFIG_FILENAME
         self._config = {}
+        # Ephemeral, in-memory API key for current session only
+        self._ephemeral_api_key: Optional[str] = None
         self._ensure_config_dir()
         self.load_config()
     
@@ -56,30 +65,69 @@ class ConfigManager:
             raise
     
     def get_api_key(self) -> Optional[str]:
-        """Get API key from secure storage"""
+        """Get API key from secure storage or fallbacks (env, config file)."""
+        # 0) Ephemeral (session-only) key if set
+        if self._ephemeral_api_key and self._ephemeral_api_key.strip():
+            return self._ephemeral_api_key.strip()
+        # 1) Environment variable takes precedence as an explicit override
+        env_key = os.getenv("KLAVIYO_API_KEY")
+        if env_key and env_key.strip():
+            return env_key.strip()
+        # 2) Keyring (preferred when available)
+        if KEYRING_AVAILABLE:
+            try:
+                api_key = keyring.get_password(self.SERVICE_NAME, self.API_KEY_USERNAME)
+                if api_key:
+                    return api_key
+            except Exception as e:
+                self.logger.warning(f"Keyring unavailable or failed, falling back to file: {e}")
+        # 3) Local config file fallback
         try:
-            api_key = keyring.get_password(self.SERVICE_NAME, self.API_KEY_USERNAME)
-            return api_key
-        except Exception as e:
-            self.logger.error(f"Error retrieving API key: {e}")
+            return self._config.get("api_key")
+        except Exception:
             return None
     
     def set_api_key(self, api_key: str):
-        """Store API key securely"""
+        """Store API key securely when possible; otherwise save to config file."""
+        if KEYRING_AVAILABLE:
+            try:
+                keyring.set_password(self.SERVICE_NAME, self.API_KEY_USERNAME, api_key)
+                self.logger.info("API key stored in keyring")
+                # Also remove any fallback value from file
+                if "api_key" in self._config:
+                    del self._config["api_key"]
+                return
+            except Exception as e:
+                self.logger.warning(f"Keyring store failed, using file fallback: {e}")
+        # Fallback: store in config file
+        self._config["api_key"] = api_key
         try:
-            keyring.set_password(self.SERVICE_NAME, self.API_KEY_USERNAME, api_key)
-            self.logger.info("API key stored securely")
+            self.save_config()
+            self.logger.info("API key stored in local config file (fallback)")
         except Exception as e:
-            self.logger.error(f"Error storing API key: {e}")
+            self.logger.error(f"Error saving API key to config file: {e}")
             raise
+
+    def set_api_key_ephemeral(self, api_key: str):
+        """Set API key only for this process (not persisted)."""
+        self._ephemeral_api_key = api_key
+        self.logger.info("API key set for session only (not saved)")
     
     def delete_api_key(self):
-        """Delete stored API key"""
-        try:
-            keyring.delete_password(self.SERVICE_NAME, self.API_KEY_USERNAME)
-            self.logger.info("API key deleted")
-        except Exception as e:
-            self.logger.error(f"Error deleting API key: {e}")
+        """Delete stored API key from keyring (if present) and config file fallback."""
+        if KEYRING_AVAILABLE:
+            try:
+                keyring.delete_password(self.SERVICE_NAME, self.API_KEY_USERNAME)
+                self.logger.info("API key deleted from keyring")
+            except Exception as e:
+                self.logger.warning(f"Error deleting API key from keyring: {e}")
+        # Remove file fallback
+        if "api_key" in self._config:
+            del self._config["api_key"]
+            try:
+                self.save_config()
+            except Exception:
+                pass
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value"""

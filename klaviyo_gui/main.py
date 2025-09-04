@@ -116,9 +116,10 @@ def check_dependencies():
         missing_deps.append("requests")
     
     try:
-        import keyring
-    except ImportError:
-        missing_deps.append("keyring")
+        import keyring  # noqa: F401
+    except Exception:
+        # Optional; we'll fall back to env/config file if missing
+        pass
     
     if missing_deps:
         print("Missing required dependencies:")

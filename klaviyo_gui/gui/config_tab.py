@@ -26,6 +26,7 @@ class ConfigTab:
         self.api_key_entry = None
         self.api_key_var = None
         self.show_api_key_var = None
+        self.dont_save_key_var = None
         self.segment_id_entry = None
         self.revision_entry = None
         self.timeout_entry = None
@@ -103,6 +104,17 @@ class ConfigTab:
         
         add_tooltip(self.api_key_entry, "Your Klaviyo API key (starts with pk_ for public or sk_ for private). Get this from your Klaviyo account settings under API Keys.")
         add_tooltip(show_key_checkbox, "Toggle API key visibility to show or hide the key characters for security")
+        
+        # Do not persist key checkbox (session-only)
+        self.dont_save_key_var = ctk.BooleanVar(value=False)
+        dont_save_checkbox = ctk.CTkCheckBox(
+            key_frame,
+            text="Don't save key (session only)",
+            variable=self.dont_save_key_var,
+            font=ctk.CTkFont(size=12)
+        )
+        dont_save_checkbox.pack(anchor="w", padx=15, pady=(0, 8))
+        add_tooltip(dont_save_checkbox, "Use the API key only for this session without saving it to keyring or disk. You'll need to re-enter it next time you open the app.")
         
         # Test connection button
         self.test_button = ctk.CTkButton(
@@ -298,6 +310,13 @@ class ConfigTab:
                 success = client.test_connection()
                 
                 if success:
+                    # If user opted not to save, remember key ephemerally for this session
+                    try:
+                        if self.dont_save_key_var and self.dont_save_key_var.get():
+                            from ..config.settings import config as _cfg  # local import to avoid cycles at import time
+                            _cfg.set_api_key_ephemeral(api_key)
+                    except Exception:
+                        pass
                     self.status_label.configure(text="✓ Connection successful!", text_color="green")
                 else:
                     self.status_label.configure(text="✗ Connection failed", text_color="red")
@@ -319,7 +338,11 @@ class ConfigTab:
                 if not validate_api_key(api_key):
                     self.status_label.configure(text="Invalid API key format", text_color="red")
                     return
-                config.set_api_key(api_key)
+                # Save ephemerally or persist depending on checkbox
+                if self.dont_save_key_var and self.dont_save_key_var.get():
+                    config.set_api_key_ephemeral(api_key)
+                else:
+                    config.set_api_key(api_key)
             
             # Segment ID
             segment_id = self.segment_id_entry.get().strip()
@@ -353,10 +376,13 @@ class ConfigTab:
                 self.status_label.configure(text="Invalid retries value", text_color="red")
                 return
             
-            # Save to file
+            # Save non-sensitive config to file
             config.save_config()
             
-            self.status_label.configure(text="✓ Configuration saved successfully!", text_color="green")
+            if self.dont_save_key_var and self.dont_save_key_var.get():
+                self.status_label.configure(text="✓ Settings saved (key stored for session only)", text_color="green")
+            else:
+                self.status_label.configure(text="✓ Configuration saved successfully!", text_color="green")
             self.logger.info("Configuration saved")
             
         except Exception as e:
