@@ -21,9 +21,13 @@ import logging
 import argparse
 from typing import Dict, Any, Optional, Iterable, List, Tuple
 import requests
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv as _load_dotenv
+except Exception:
+    _load_dotenv = None
 
-load_dotenv()
+if _load_dotenv:
+    _load_dotenv()
 
 API_KEY = os.getenv("KLAVIYO_API_KEY", "").strip()
 if not API_KEY:

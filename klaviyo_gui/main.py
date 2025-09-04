@@ -7,7 +7,10 @@ import logging
 import tkinter as tk
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv as _load_dotenv
+except Exception:
+    _load_dotenv = None
 
 # Determine if running as a frozen executable (compiled binary)
 if getattr(sys, 'frozen', False):
@@ -23,7 +26,8 @@ else:
 
 # Load environment variables from a .env file if present (useful on Windows/macOS)
 try:
-    load_dotenv()
+    if _load_dotenv:
+        _load_dotenv()
 except Exception:
     pass
 
