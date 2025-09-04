@@ -1,0 +1,9 @@
+# Runtime dependencies
+customtkinter>=5.2.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+keyring>=24.0.0
+
+# Optional: build tools (uncomment if you plan to build executables)
+# pyinstaller>=6.7.0
+
